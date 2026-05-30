@@ -10,10 +10,11 @@
 
 ## 1. Problema e enquadramento
 
-Uma rede de Atenção Primária à Saúde abastece suas unidades por **cota mensal
-regular** complementada por **pedidos extras** quando a cota é insuficiente.
-Com 21,1% dos pedidos sendo extras (base jan–abr/2026), há evidência de cotas
-mal dimensionadas — algumas unidades pedem demais via extra, outras racionam.
+Uma organização com reposição periódica de estoques abastece suas unidades
+via **cota mensal regular** complementada por **requisições complementares**
+quando a cota se mostra insuficiente. Com ~21 % das requisições sendo extras
+(base jan–abr/2026, dataset sintético), há evidência de cotas mal dimensionadas
+— algumas unidades extrapolam sistematicamente, outras racionam.
 
 **O objeto do modelo não é prever consumo pontual.** O enquadramento é de
 **eficiência alocativa sob incerteza estocástica**: dado que a demanda futura
@@ -33,13 +34,14 @@ esperado (falta + excesso)? A resposta é dada por **dominância estocástica de
 
 | Atributo | Descrição |
 |---|---|
-| **Origem** | Relatório SCM exportado como HTML com extensão `.xls` |
-| **Leitura** | `pandas.read_html` — não engine binário (o arquivo é HTML) |
+| **Dataset incluído** | `data/dataset_sintetico.csv` — gerado por `generate_synthetic_data.py` |
+| **Formato CSV** | Lido por `pd.read_csv` — detectado pelo sufixo `.csv` na Camada 1 |
+| **Formato legado** | HTML com extensão `.xls` → `pd.read_html` (retrocompatível) |
 | **Granularidade** | Uma linha por pedido |
 | **Colunas** | unidade, data_solic, produto, categoria, qtd_solic, qtd_env, qtd_rec, status, pedido_extra, mes_ref |
-| **Volume atual** | 2.603 pedidos · 15 unidades · 125 produtos · jan–abr/2026 (T = 4 meses completos) |
+| **Volume sintético** | 3.771 pedidos · 15 unidades · 110 produtos · jan–abr/2026 (T = 4 meses) |
 | **Período parcial** | Maio/2026 entra só na auditoria; fica fora das médias |
-| **Confidencialidade** | Unidades anonimizadas (A–O) em artefatos publicáveis; arquivo original nunca versionado |
+| **Dataset** | Sem correspondência com nenhuma operação real |
 
 ---
 
@@ -425,16 +427,24 @@ O sistema registra abertamente onde seu rigor é inferior ao desejável:
 ├── pipeline_eficiencia_alocativa.py  # Camadas 1-4 + orquestrador ML
 ├── ml_forecasting.py                 # Camada 5 — previsão com gate
 ├── ml_validation.py                  # Camada 6 — validação e retreino
+├── generate_synthetic_data.py        # Gerador do dataset de demonstração
 ├── dashboard.html                    # Dashboard de KPIs (autocontido)
 ├── CLAUDE.md                         # Contexto e roadmap (uso interno)
+├── ARQUITETURA.md                    # Este documento
 ├── README.md                         # Documentação pública do repositório
 ├── docs/
 │   └── Projeto_Eficiencia_Alocativa.docx
-├── output/
-│   └── Modelagem_Consumo_USFs.xlsx   # Relatório operacional (7 abas)
-└── data/                             # Estado persistente do ML (não versionado)
-    ├── historico_mensal.csv
-    └── model_registry.csv
+├── data/
+│   ├── dataset_sintetico.csv         # Dataset de demonstração (gerado)
+│   ├── historico_mensal.csv          # Histórico acumulado do ML (gerado)
+│   └── model_registry.csv           # Registro de modelos (gerado)
+└── output/                           # Saídas do pipeline (geradas)
+    ├── 01_dataset_consolidado.csv
+    ├── 02_metricas_por_par.csv
+    ├── 03_politicas_cota.csv
+    ├── 04_dominancia.csv
+    ├── 05_previsoes.csv
+    └── 06_backtest_walkforward.csv
 ```
 
 ---

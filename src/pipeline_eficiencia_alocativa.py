@@ -1,20 +1,19 @@
 """
 ================================================================================
 PIPELINE DE EFICIÊNCIA ALOCATIVA SOB INCERTEZA ESTOCÁSTICA
-Sistema de Materiais de Apoio — Rede Municipal de Atenção Primária à Saúde
+Arcabouço de alocação de estoques sob demanda incerta
 ================================================================================
 
 Autor          : Ryan Gabriel de Lima Nascimento
-Contexto       : Dados operacionais reais, identificações suprimidas (confidencialidade)
-Versão         : 1.0.0
+Versão         : 2.0.0
 Data           : Maio/2026
-Licença        : Uso interno (replicação institucional autorizada)
+Licença        : MIT
 
 DESCRIÇÃO
 ---------
 Este script implementa o pipeline analítico descrito no documento de projeto
-"Modelagem da Eficiência Alocativa de Materiais de Apoio na APS sob
-Incerteza Estocástica" (doravante DOC-PROJ §N referencia a seção N do documento).
+"Modelagem da Eficiência Alocativa sob Incerteza Estocástica"
+(doravante DOC-PROJ §N referencia a seção N do documento).
 
 Arquitetura em 4 camadas independentes mas encadeadas:
     Camada 1 — Consolidação e auditoria do data layer  (DOC-PROJ §10.1)
@@ -44,8 +43,13 @@ DEPENDÊNCIAS
 USO
 ---
     $ python pipeline_eficiencia_alocativa.py \\
-        --input  /caminho/Relatorio_SCM.xls \\
-        --output /caminho/saida/
+        --input  data/dataset_sintetico.csv \\
+        --output output/
+
+    # Também aceita o relatório SCM original (HTML salvo como .xls):
+    $ python pipeline_eficiencia_alocativa.py \\
+        --input  /caminho/relatorio.xls \\
+        --output output/
 
 ESTRUTURA DE SAÍDA
 ------------------
@@ -218,10 +222,15 @@ def camada1_carregar_e_normalizar(input_path: Path,
     """
     log.info(f"Camada 1.1 — Carregando {input_path}")
 
-    # O relatório do SCM exporta como HTML com extensão .xls — leitura via pd.read_html
-    tables = pd.read_html(input_path)
-    assert len(tables) == 1, f"Esperava 1 tabela, encontrei {len(tables)}"
-    df = tables[0]
+    # Suporta dois formatos:
+    #   .csv  — dataset sintético ou exportação já normalizada
+    #   .xls  — relatório exportado como HTML com extensão .xls (pd.read_html)
+    if input_path.suffix.lower() == '.csv':
+        df = pd.read_csv(input_path, encoding='utf-8')
+    else:
+        tables = pd.read_html(input_path)
+        assert len(tables) == 1, f"Esperava 1 tabela, encontrei {len(tables)}"
+        df = tables[0]
     n_inicial = len(df)
 
     # Renomear para snake_case (DOC-PROJ §10.1.1)
@@ -257,12 +266,12 @@ def camada1_anonimizar(df: pd.DataFrame,
     """
     Anonimiza nomes de unidade para publicação externa (opcional).
 
-    Quando ativo=True, remapeia cada unidade para 'Unidade A', 'Unidade B', ...
+    Quando ativo=True, remapeia cada unidade para 'Unidade_01', 'Unidade_02', ...
     em ordem decrescente de volume de pedidos. Salva o mapa em
     'mapa_anonimizacao.json' para auditoria reversível interna.
 
-    Use ativo=True apenas para gerar artefatos de portfolio/publicação;
-    mantenha ativo=False para uso operacional interno.
+    Use ativo=True apenas para gerar artefatos publicáveis a partir de dados
+    com identificações sensíveis; mantenha ativo=False para uso interno.
     """
     if not ativo:
         return df
@@ -270,7 +279,7 @@ def camada1_anonimizar(df: pd.DataFrame,
     log.info("Camada 1.0 — Anonimização de unidades (modo publicação)")
     import json
     ordem = df.groupby('unidade').size().sort_values(ascending=False).index.tolist()
-    mapa = {nome: f'Unidade {chr(65 + i)}' for i, nome in enumerate(ordem)}
+    mapa = {nome: f'Unidade_{i+1:02d}' for i, nome in enumerate(ordem)}
     df['unidade'] = df['unidade'].map(mapa)
     with open('mapa_anonimizacao.json', 'w', encoding='utf-8') as f:
         json.dump(mapa, f, ensure_ascii=False, indent=2)
@@ -843,7 +852,7 @@ def main():
     parser.add_argument('--output', required=True, type=Path,
                         help='Diretório de saída')
     parser.add_argument('--anonimizar', action='store_true',
-                        help='Remapeia unidades para Unidade A..O (modo publicação)')
+                        help='Remapeia unidades para Unidade_01..N (modo publicação)')
     parser.add_argument('--ml', action='store_true',
                         help='Executa Camadas 5-6 (módulo ML): previsão e retreino versionado')
     parser.add_argument('--data-dir', type=Path, default=None,

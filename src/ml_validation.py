@@ -1,10 +1,11 @@
 """
 ================================================================================
 CAMADA 6 — BACKTESTING WALK-FORWARD, RETREINO VERSIONADO E DETECÇÃO DE DRIFT
+Arcabouço de alocação de estoques sob demanda incerta
 ================================================================================
 
 Autor  : Ryan Gabriel de Lima Nascimento
-Versão : 1.0.0
+Versão : 2.0.0
 Data   : Maio/2026
 
 DESCRIÇÃO

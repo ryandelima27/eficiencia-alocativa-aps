@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard — Eficiência Alocativa de Materiais · APS</title>
+<title>Dashboard — Eficiência Alocativa de Estoques</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
   :root {
@@ -206,8 +206,8 @@
 <!-- ═══════════════════════════════════════════════════════════ HEADER -->
 <header>
   <div class="header-left">
-    <h1>Eficiência Alocativa de Materiais · Atenção Primária à Saúde</h1>
-    <p>Diagnóstico de cotas mensais sob incerteza estocástica — dominância SSD de 2ª ordem</p>
+    <h1>Eficiência Alocativa de Estoques sob Incerteza Estocástica</h1>
+    <p>Diagnóstico de políticas de cota · dominância estocástica de 2ª ordem (SSD)</p>
   </div>
   <div class="header-right">
     <span class="badge badge-period">Jan – Abr 2026 · T = 4 meses</span>
@@ -242,7 +242,7 @@
   <div class="card kpi kpi-blue">
     <span class="kpi-label">Unidades atendidas</span>
     <span class="kpi-value">15</span>
-    <span class="kpi-sub">unidades de APS</span>
+    <span class="kpi-sub">unidades monitoradas</span>
   </div>
 
   <div class="card kpi kpi-slate">
@@ -529,21 +529,21 @@ const D = {
     { mes:'Abr/26', total:1734, extra:194, regular:1540 },
   ],
   unidades: [
-    { unidade:'Unidade K', consumo:623,  pct_extra:34.7 },
-    { unidade:'Unidade A', consumo:574,  pct_extra:19.9 },
-    { unidade:'Unidade E', consumo:510,  pct_extra:24.3 },
-    { unidade:'Unidade G', consumo:477,  pct_extra:18.0 },
-    { unidade:'Unidade C', consumo:398,  pct_extra:19.1 },
-    { unidade:'Unidade J', consumo:385,  pct_extra:26.5 },
-    { unidade:'Unidade B', consumo:332,  pct_extra:20.8 },
-    { unidade:'Unidade F', consumo:307,  pct_extra:14.0 },
-    { unidade:'Unidade H', consumo:290,  pct_extra:17.6 },
-    { unidade:'Unidade L', consumo:278,  pct_extra:22.3 },
-    { unidade:'Unidade D', consumo:247,  pct_extra:18.2 },
-    { unidade:'Unidade I', consumo:212,  pct_extra:15.6 },
-    { unidade:'Unidade M', consumo:199,  pct_extra:12.1 },
-    { unidade:'Unidade N', consumo:135,  pct_extra:11.9 },
-    { unidade:'Unidade O', consumo:87,   pct_extra:9.2  },
+    { unidade:'Unidade_01', consumo:623,  pct_extra:34.7 },
+    { unidade:'Unidade_02', consumo:574,  pct_extra:19.9 },
+    { unidade:'Unidade_03', consumo:510,  pct_extra:24.3 },
+    { unidade:'Unidade_04', consumo:477,  pct_extra:18.0 },
+    { unidade:'Unidade_05', consumo:398,  pct_extra:19.1 },
+    { unidade:'Unidade_06', consumo:385,  pct_extra:26.5 },
+    { unidade:'Unidade_07', consumo:332,  pct_extra:20.8 },
+    { unidade:'Unidade_08', consumo:307,  pct_extra:14.0 },
+    { unidade:'Unidade_09', consumo:290,  pct_extra:17.6 },
+    { unidade:'Unidade_10', consumo:278,  pct_extra:22.3 },
+    { unidade:'Unidade_11', consumo:247,  pct_extra:18.2 },
+    { unidade:'Unidade_12', consumo:212,  pct_extra:15.6 },
+    { unidade:'Unidade_13', consumo:199,  pct_extra:12.1 },
+    { unidade:'Unidade_14', consumo:135,  pct_extra:11.9 },
+    { unidade:'Unidade_15', consumo:87,   pct_extra:9.2  },
   ],
   categorias: {
     labels: ['Categoria 1','Categoria 2','Categoria 3'],

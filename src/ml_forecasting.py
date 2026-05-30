@@ -1,10 +1,11 @@
 """
 ================================================================================
 CAMADA 5 — PREVISÃO DE DEMANDA COM GATE DE CONFIABILIDADE
+Arcabouço de alocação de estoques sob demanda incerta
 ================================================================================
 
 Autor  : Ryan Gabriel de Lima Nascimento
-Versão : 1.0.0
+Versão : 2.0.0
 Data   : Maio/2026
 
 DESCRIÇÃO
