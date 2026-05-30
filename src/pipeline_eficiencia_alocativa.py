@@ -125,6 +125,34 @@ class Config:
 CONFIG = Config()
 
 
+@dataclass(frozen=True)
+class MLConfig:
+    """
+    Parâmetros do módulo de Machine Learning (Camadas 5-6).
+
+    Cortes de confiabilidade e hiperparâmetros separados do Config principal
+    para deixar explícito que são parâmetros do módulo de ML, não do pipeline
+    estatístico clássico. Alterações requerem registro no changelog.
+    """
+
+    # Gate de confiabilidade (DOC-PROJ §10.5.1)
+    T_MIN_PRELIMINAR: int = 8    # meses mínimos para confiabilidade 'preliminar'
+    T_OPERACIONAL: int = 18      # meses para 'operacional' + sazonalidade habilitada
+
+    # Walk-forward (DOC-PROJ §10.6.2)
+    WALK_FORWARD_MIN_TREINO: int = 3  # folds mínimos de treino antes de prever
+
+    # Ridge (DOC-PROJ §10.5.3)
+    RIDGE_ALPHAS: tuple = (0.01, 0.1, 1.0, 10.0, 100.0)
+
+    # Detecção de drift (DOC-PROJ §10.6.4)
+    DRIFT_JANELA: int = 3          # últimos N meses para z-score do erro
+    DRIFT_Z_THRESHOLD: float = 2.0  # |z| acima do qual dispara flag de recalibração
+
+
+ML_CONFIG = MLConfig()
+
+
 # ============================================================================
 # LOGGING E AUDITORIA
 # ============================================================================
@@ -714,6 +742,98 @@ def executar_pipeline(input_path: Path, output_dir: Path,
     }
 
 
+def executar_modulo_ml(
+    resultado_pipeline: dict,
+    data_dir: Path,
+    output_dir: Path,
+    log: logging.Logger,
+) -> dict:
+    """
+    Executa as Camadas 5 e 6 (módulo ML) sobre o resultado do pipeline clássico.
+
+    Encapsula: ingestão incremental do histórico, backtest walk-forward,
+    retreino versionado, detecção de drift, previsão T+1 e fechamento do ciclo.
+
+    Parameters
+    ----------
+    resultado_pipeline : dict
+        Saída de executar_pipeline (chaves: 'painel', 'metricas', 'dominancia').
+    data_dir : Path
+        Diretório de estado persistente (historico_mensal.csv, model_registry.csv).
+    output_dir : Path
+        Diretório de saída (05_previsoes.csv, 06_backtest_walkforward.csv).
+    log : Logger
+
+    Returns
+    -------
+    dict : {campeao, metricas_campeao, drift_status, previsoes, dominancia_ml}
+    """
+    # Importação lazy — módulo ML é opcional
+    from ml_forecasting import camada5_prever
+    from ml_validation import (
+        IngestorIncremental, ModelRegistry, DriftMonitor,
+        camada6_retreinar, fechar_ciclo,
+    )
+
+    data_dir.mkdir(parents=True, exist_ok=True)
+    hist_path = data_dir / 'historico_mensal.csv'
+    reg_path = data_dir / 'model_registry.csv'
+
+    # Ingestão incremental
+    ingestor = IngestorIncremental(hist_path)
+    historico = ingestor.append(resultado_pipeline['painel'], log=log)
+
+    metricas_xyz = resultado_pipeline['metricas']
+    registry = ModelRegistry(reg_path)
+    drift_monitor = DriftMonitor(
+        janela=ML_CONFIG.DRIFT_JANELA,
+        z_threshold=ML_CONFIG.DRIFT_Z_THRESHOLD,
+    )
+
+    # Camada 6 — backtest, retreino, drift
+    resultado_c6 = camada6_retreinar(
+        historico=historico,
+        metricas_xyz=metricas_xyz,
+        t_preliminar=ML_CONFIG.T_MIN_PRELIMINAR,
+        t_operacional=ML_CONFIG.T_OPERACIONAL,
+        ridge_alphas=ML_CONFIG.RIDGE_ALPHAS,
+        registry=registry,
+        drift_monitor=drift_monitor,
+        output_dir=output_dir,
+        log=log,
+    )
+
+    # Camada 5 — previsão T+1
+    previsoes = camada5_prever(
+        historico=historico,
+        metricas_xyz=metricas_xyz,
+        t_preliminar=ML_CONFIG.T_MIN_PRELIMINAR,
+        t_operacional=ML_CONFIG.T_OPERACIONAL,
+        ridge_alphas=ML_CONFIG.RIDGE_ALPHAS,
+        modelo_campeao=resultado_c6['campeao'],
+        output_dir=output_dir,
+        log=log,
+    )
+
+    # Fechamento do ciclo — enriquece análise de dominância com demanda prevista
+    dominancia_ml = fechar_ciclo(
+        dominancia_df=resultado_pipeline['dominancia'],
+        previsoes=previsoes,
+        log=log,
+    )
+    dominancia_ml.to_csv(output_dir / '04_dominancia_ml.csv', index=False, encoding='utf-8')
+    log.info('Camadas 5-6 concluídas. Saídas: 05_previsoes.csv, '
+             '06_backtest_walkforward.csv, 04_dominancia_ml.csv')
+
+    return {
+        'campeao': resultado_c6['campeao'],
+        'metricas_campeao': resultado_c6['metricas_campeao'],
+        'drift_status': resultado_c6['drift_status'],
+        'previsoes': previsoes,
+        'dominancia_ml': dominancia_ml,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -724,8 +844,20 @@ def main():
                         help='Diretório de saída')
     parser.add_argument('--anonimizar', action='store_true',
                         help='Remapeia unidades para Unidade A..O (modo publicação)')
+    parser.add_argument('--ml', action='store_true',
+                        help='Executa Camadas 5-6 (módulo ML): previsão e retreino versionado')
+    parser.add_argument('--data-dir', type=Path, default=None,
+                        help='Diretório de estado persistente do ML '
+                             '(historico_mensal.csv, model_registry.csv). '
+                             'Default: <output>/data/')
     args = parser.parse_args()
-    executar_pipeline(args.input, args.output, anonimizar=args.anonimizar)
+
+    resultado = executar_pipeline(args.input, args.output, anonimizar=args.anonimizar)
+
+    if args.ml:
+        log = logging.getLogger(__name__)
+        data_dir = args.data_dir or args.output / 'data'
+        executar_modulo_ml(resultado, data_dir, args.output, log)
 
 
 if __name__ == '__main__':
