@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Eficiência Alocativa de Materiais · APS</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:        #f1f5f9;
+    --surface:   #ffffff;
+    --surface2:  #f8fafc;
+    --border:    #e2e8f0;
+    --navy:      #0f2744;
+    --blue:      #1d4ed8;
+    --blue-lt:   #dbeafe;
+    --green:     #059669;
+    --green-lt:  #d1fae5;
+    --amber:     #d97706;
+    --amber-lt:  #fef3c7;
+    --red:       #dc2626;
+    --red-lt:    #fee2e2;
+    --slate:     #475569;
+    --slate-lt:  #94a3b8;
+    --text:      #0f172a;
+    --text2:     #334155;
+    --radius:    12px;
+    --shadow:    0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.04);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ── HEADER ─────────────────────────────────────────────────────────── */
+  header {
+    background: var(--navy);
+    color: #fff;
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .header-left h1 { font-size: 18px; font-weight: 700; letter-spacing: .3px; }
+  .header-left p  { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+  .header-right   { display: flex; gap: 12px; align-items: center; flex-shrink: 0; }
+  .badge {
+    padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+  }
+  .badge-period  { background: rgba(255,255,255,.1); color: #e2e8f0; }
+  .badge-shadow  { background: rgba(245,158,11,.15); color: #fbbf24; border: 1px solid rgba(245,158,11,.3); }
+
+  /* ── LAYOUT ─────────────────────────────────────────────────────────── */
+  main { padding: 24px 32px; max-width: 1400px; margin: 0 auto; }
+  .section-title {
+    font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--slate-lt); margin-bottom: 12px; margin-top: 28px;
+  }
+  .grid-kpi  { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; }
+  .grid-2    { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3    { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 14px; }
+  .grid-ml   { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  @media (max-width: 1100px) {
+    .grid-kpi { grid-template-columns: repeat(3, 1fr); }
+    .grid-3   { grid-template-columns: 1fr 1fr; }
+    .grid-2   { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 700px) {
+    .grid-kpi { grid-template-columns: 1fr 1fr; }
+    main { padding: 16px; }
+  }
+
+  /* ── CARD ────────────────────────────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    padding: 20px;
+  }
+  .card-title {
+    font-size: 12px; font-weight: 600; color: var(--slate);
+    text-transform: uppercase; letter-spacing: .5px; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .card-title .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ── KPI CARD ────────────────────────────────────────────────────────── */
+  .kpi {
+    display: flex; flex-direction: column; gap: 6px;
+    padding: 18px; position: relative; overflow: hidden;
+  }
+  .kpi::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0;
+    height: 3px; border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .kpi-blue::before   { background: var(--blue); }
+  .kpi-green::before  { background: var(--green); }
+  .kpi-amber::before  { background: var(--amber); }
+  .kpi-red::before    { background: var(--red); }
+  .kpi-slate::before  { background: var(--slate); }
+  .kpi-navy::before   { background: var(--navy); }
+  .kpi-label { font-size: 11px; font-weight: 600; color: var(--slate); text-transform: uppercase; letter-spacing: .6px; }
+  .kpi-value { font-size: 28px; font-weight: 800; line-height: 1; }
+  .kpi-sub   { font-size: 11px; color: var(--slate-lt); }
+  .kpi-blue  .kpi-value { color: var(--blue); }
+  .kpi-green .kpi-value { color: var(--green); }
+  .kpi-amber .kpi-value { color: var(--amber); }
+  .kpi-red   .kpi-value { color: var(--red); }
+  .kpi-slate .kpi-value { color: var(--slate); }
+  .kpi-navy  .kpi-value { color: var(--navy); }
+
+  /* ── CHART WRAPPER ───────────────────────────────────────────────────── */
+  .chart-wrap { position: relative; width: 100%; }
+  .chart-wrap canvas { width: 100% !important; }
+
+  /* ── TABLE ───────────────────────────────────────────────────────────── */
+  .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .tbl th {
+    background: var(--surface2); text-align: left; padding: 9px 12px;
+    font-size: 11px; font-weight: 700; color: var(--slate); letter-spacing: .4px;
+    text-transform: uppercase; border-bottom: 2px solid var(--border); position: sticky; top: 0;
+  }
+  .tbl td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .tbl tr:last-child td { border-bottom: none; }
+  .tbl tr:hover td { background: var(--surface2); }
+  .tbl-wrap { overflow-x: auto; max-height: 360px; overflow-y: auto; border-radius: 8px; border: 1px solid var(--border); }
+
+  /* ── PILLS ───────────────────────────────────────────────────────────── */
+  .pill {
+    display: inline-block; padding: 2px 9px; border-radius: 20px;
+    font-size: 11px; font-weight: 600; white-space: nowrap;
+  }
+  .pill-z    { background: #fee2e2; color: #991b1b; }
+  .pill-y    { background: #fef3c7; color: #92400e; }
+  .pill-x    { background: #d1fae5; color: #065f46; }
+  .pill-low  { background: #e0e7ff; color: #3730a3; }
+  .pill-none { background: #f1f5f9; color: #475569; }
+  .pill-ref  { background: #fde68a; color: #78350f; }
+  .pill-inc  { background: #bfdbfe; color: #1e3a8a; }
+  .pill-mnt  { background: #dcfce7; color: #14532d; }
+
+  /* ── ML PAINEL ───────────────────────────────────────────────────────── */
+  .ml-status {
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .ml-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-radius: 8px; background: var(--surface2);
+    border: 1px solid var(--border);
+  }
+  .ml-label { font-size: 12px; font-weight: 600; color: var(--slate); }
+  .ml-value { font-size: 13px; font-weight: 700; }
+  .ml-insuf  { color: var(--amber); }
+  .ml-prelim { color: var(--blue); }
+  .ml-oper   { color: var(--green); }
+
+  .progress-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin-top: 8px; }
+  .progress-fill { height: 100%; border-radius: 4px; background: var(--amber); transition: width .6s ease; }
+
+  .milestone-track {
+    display: flex; align-items: center; gap: 0; margin-top: 12px;
+  }
+  .milestone-seg {
+    flex: 1; height: 6px; background: var(--border); border-radius: 3px;
+    position: relative;
+  }
+  .milestone-seg.done { background: var(--amber); }
+  .milestone-seg.active { background: var(--amber); }
+  .milestone-dot {
+    width: 12px; height: 12px; border-radius: 50%; background: var(--border);
+    border: 2px solid #fff; flex-shrink: 0; box-shadow: 0 0 0 1px var(--border);
+    position: relative; z-index: 1;
+  }
+  .milestone-dot.done   { background: var(--amber); box-shadow: 0 0 0 1px var(--amber); }
+  .milestone-dot.active { background: var(--amber); box-shadow: 0 0 0 3px rgba(217,119,6,.25); }
+  .milestone-labels { display: flex; justify-content: space-between; margin-top: 6px; }
+  .milestone-labels span { font-size: 10px; color: var(--slate-lt); text-align: center; flex: 1; }
+
+  /* ── ALERT BOX ───────────────────────────────────────────────────────── */
+  .alert {
+    display: flex; gap: 10px; padding: 12px 14px; border-radius: 8px;
+    font-size: 12px; line-height: 1.5;
+  }
+  .alert-amber { background: var(--amber-lt); color: #78350f; border: 1px solid #fcd34d; }
+  .alert-blue  { background: var(--blue-lt);  color: #1e3a8a; border: 1px solid #93c5fd; }
+  .alert-icon  { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── DIVIDER ─────────────────────────────────────────────────────────── */
+  hr { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+
+  /* ── FOOTER ─────────────────────────────────────────────────────────── */
+  footer {
+    text-align: center; padding: 20px; font-size: 11px; color: var(--slate-lt);
+    border-top: 1px solid var(--border); margin-top: 32px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════ HEADER -->
+<header>
+  <div class="header-left">
+    <h1>Eficiência Alocativa de Materiais · Atenção Primária à Saúde</h1>
+    <p>Diagnóstico de cotas mensais sob incerteza estocástica — dominância SSD de 2ª ordem</p>
+  </div>
+  <div class="header-right">
+    <span class="badge badge-period">Jan – Abr 2026 · T = 4 meses</span>
+    <span class="badge badge-shadow">ML: modo sombra</span>
+  </div>
+</header>
+
+<main>
+
+<!-- ═══════════════════════════════════════════════════════════ KPIs -->
+<div class="section-title">Visão geral</div>
+<div class="grid-kpi">
+
+  <div class="card kpi kpi-navy">
+    <span class="kpi-label">Consumo total</span>
+    <span class="kpi-value" id="kpi-consumo">5.054</span>
+    <span class="kpi-sub">unidades · jan–abr/2026</span>
+  </div>
+
+  <div class="card kpi kpi-red">
+    <span class="kpi-label">Pedidos extras</span>
+    <span class="kpi-value" id="kpi-extra">21,1%</span>
+    <span class="kpi-sub">do consumo total</span>
+  </div>
+
+  <div class="card kpi kpi-amber">
+    <span class="kpi-label">Políticas dominadas</span>
+    <span class="kpi-value">94%</span>
+    <span class="kpi-sub">da cota atual — SSD 2ª ordem</span>
+  </div>
+
+  <div class="card kpi kpi-blue">
+    <span class="kpi-label">Unidades atendidas</span>
+    <span class="kpi-value">15</span>
+    <span class="kpi-sub">unidades de APS</span>
+  </div>
+
+  <div class="card kpi kpi-slate">
+    <span class="kpi-label">Produtos monitorados</span>
+    <span class="kpi-value">114</span>
+    <span class="kpi-sub">em 3 categorias</span>
+  </div>
+
+  <div class="card kpi kpi-green">
+    <span class="kpi-label">Pares activos</span>
+    <span class="kpi-value">547</span>
+    <span class="kpi-sub">com consumo material ≥ 0,5/mês</span>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ LINHA 1 -->
+<div class="section-title">Consumo mensal e composição</div>
+<div class="grid-3">
+
+  <!-- Série temporal -->
+  <div class="card">
+    <div class="card-title">
+      <span class="dot" style="background:var(--blue)"></span>
+      Evolução do consumo mensal
+    </div>
+    <div class="alert alert-amber" style="margin-bottom:14px">
+      <span class="alert-icon">⚠</span>
+      <span>Janeiro/2026 registrou consumo anômalo baixo (62 un.) — sistema em fase inicial de lançamento. Médias calculadas sobre fevereiro–abril.</span>
+    </div>
+    <div class="chart-wrap" style="height:220px">
+      <canvas id="chart-serie"></canvas>
+    </div>
+  </div>
+
+  <!-- Categorias donut -->
+  <div class="card">
+    <div class="card-title">
+      <span class="dot" style="background:var(--navy)"></span>
+      Consumo por categoria
+    </div>
+    <div class="chart-wrap" style="height:220px">
+      <canvas id="chart-categorias"></canvas>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-top:12px">
+      <div style="display:flex;justify-content:space-between;font-size:12px">
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:2px;background:#1d4ed8;display:inline-block"></span>Limpeza</span>
+        <span style="font-weight:700">2.509 (49,6%)</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px">
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:2px;background:#7c3aed;display:inline-block"></span>Escritório</span>
+        <span style="font-weight:700">1.966 (38,9%)</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px">
+        <span style="display:flex;align-items:center;gap:6px"><span style="width:10px;height:10px;border-radius:2px;background:#0891b2;display:inline-block"></span>Copa</span>
+        <span style="font-weight:700">579 (11,5%)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- XYZ donut -->
+  <div class="card">
+    <div class="card-title">
+      <span class="dot" style="background:var(--amber)"></span>
+      Tipologia XYZ da demanda
+    </div>
+    <div class="chart-wrap" style="height:220px">
+      <canvas id="chart-xyz"></canvas>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-top:12px">
+      <div style="display:flex;justify-content:space-between;font-size:12px">
+        <span><span class="pill pill-z">Z – Errático</span></span>
+        <span style="font-weight:700">274 (50%)</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px">
+        <span><span class="pill pill-low">Baixa Rotatividade</span></span>
+        <span style="font-weight:700">213 (39%)</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px">
+        <span><span class="pill pill-y">Y – Moderado</span></span>
+        <span style="font-weight:700">60 (11%)</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ LINHA 2 -->
+<div class="section-title">Análise por unidade e ações de cota</div>
+<div class="grid-2">
+
+  <!-- Por unidade -->
+  <div class="card">
+    <div class="card-title">
+      <span class="dot" style="background:var(--navy)"></span>
+      Consumo total e % extras por unidade
+    </div>
+    <div class="chart-wrap" style="height:320px">
+      <canvas id="chart-unidades"></canvas>
+    </div>
+  </div>
+
+  <!-- Ações sugeridas + destaque -->
+  <div class="card">
+    <div class="card-title">
+      <span class="dot" style="background:var(--green)"></span>
+      Ações sugeridas sobre as cotas
+    </div>
+    <div class="chart-wrap" style="height:180px">
+      <canvas id="chart-acoes"></canvas>
+    </div>
+    <hr>
+    <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px">
+      <div class="alert alert-amber">
+        <span class="alert-icon">🔺</span>
+        <span><strong>85 pares (15,5%)</strong> identificados para reforço de cota — alta dependência de pedidos extras com custo estocástico acima da cota regular.</span>
+      </div>
+      <div class="alert alert-blue">
+        <span class="alert-icon">ℹ</span>
+        <span><strong>94% das cotas vigentes</strong> são dominadas estocasticamente em 2ª ordem (SSD) por ao menos uma das políticas alternativas propostas.</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ LINHA 3 -->
+<div class="section-title">Ranking de produtos críticos (consumo médio ≥ 0,5 un./mês)</div>
+<div class="card" style="padding:0">
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Produto</th>
+          <th>Categoria</th>
+          <th>Consumo médio/mês</th>
+          <th>CV</th>
+          <th>% Extra</th>
+          <th>Tipologia</th>
+          <th>Ação sugerida</th>
+        </tr>
+      </thead>
+      <tbody id="tbl-produtos"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ LINHA 4 -->
+<div class="section-title">Status do módulo ML — Camadas 5-6</div>
+<div class="grid-ml">
+
+  <!-- Status de confiabilidade -->
+  <div class="card">
+    <div class="card-title">
+      <span class="dot" style="background:var(--amber)"></span>
+      Confiabilidade das previsões
+    </div>
+    <div class="ml-status">
+      <div class="ml-row">
+        <span class="ml-label">Meses acumulados (T)</span>
+        <span class="ml-value ml-insuf">4</span>
+      </div>
+      <div class="ml-row">
+        <span class="ml-label">Status atual</span>
+        <span class="ml-value ml-insuf">Modo sombra</span>
+      </div>
+      <div class="ml-row">
+        <span class="ml-label">Modelo ativo</span>
+        <span class="ml-value" style="color:var(--slate);font-size:12px">Baseline MMP</span>
+      </div>
+      <div class="ml-row">
+        <span class="ml-label">Substitui Camadas 3-4?</span>
+        <span class="ml-value" style="color:var(--red)">Não</span>
+      </div>
+    </div>
+    <div style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--slate-lt);margin-bottom:4px">
+        <span>Progresso para modo preliminar</span>
+        <span>4 / 8 meses</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:50%"></div></div>
+    </div>
+    <div style="margin-top:16px">
+      <div class="milestone-track">
+        <div class="milestone-dot done"></div>
+        <div class="milestone-seg done"></div>
+        <div class="milestone-dot active"></div>
+        <div class="milestone-seg"></div>
+        <div class="milestone-dot"></div>
+        <div class="milestone-seg"></div>
+        <div class="milestone-dot"></div>
+      </div>
+      <div class="milestone-labels">
+        <span>Jan/26</span>
+        <span></span>
+        <span>T=8<br><small>preliminar</small></span>
+        <span></span>
+        <span>T=18<br><small>operacional</small></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Backtest do baseline -->
+  <div class="card">
+    <div class="card-title">
+      <span class="dot" style="background:var(--blue)"></span>
+      Backtest walk-forward · Baseline MMP
+    </div>
+    <div class="ml-status">
+      <div class="ml-row">
+        <span class="ml-label">MAE (erro absoluto médio)</span>
+        <span class="ml-value" style="color:var(--slate)">2,13 un./mês</span>
+      </div>
+      <div class="ml-row">
+        <span class="ml-label">RMSE</span>
+        <span class="ml-value" style="color:var(--slate)">3,64 un./mês</span>
+      </div>
+      <div class="ml-row">
+        <span class="ml-label">MAPE</span>
+        <span class="ml-value" style="color:var(--slate)">73,9%</span>
+      </div>
+      <div class="ml-row">
+        <span class="ml-label">Observações no backtest</span>
+        <span class="ml-value" style="color:var(--slate)">773</span>
+      </div>
+    </div>
+    <div class="alert alert-amber" style="margin-top:14px">
+      <span class="alert-icon">⚠</span>
+      <span>MAPE elevado é esperado com T=4 — maioria dos pares tem consumo próximo de zero (CV alto). Métrica válida para comparar modelos entre si, não em termos absolutos.</span>
+    </div>
+  </div>
+
+  <!-- Roadmap de ativação -->
+  <div class="card">
+    <div class="card-title">
+      <span class="dot" style="background:var(--green)"></span>
+      Roadmap de ativação dos modelos
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div class="ml-row" style="background:var(--amber-lt);border-color:#fcd34d">
+        <div>
+          <div style="font-weight:700;font-size:12px;color:#92400e">T &lt; 8 meses · Agora</div>
+          <div style="font-size:11px;color:#78350f">Modo sombra — apenas Baseline MMP.<br>Previsões geradas mas não substituem cotas.</div>
+        </div>
+      </div>
+      <div class="ml-row">
+        <div>
+          <div style="font-weight:700;font-size:12px;color:var(--slate)">T ≥ 8 · Set/2026</div>
+          <div style="font-size:11px;color:var(--slate-lt)">Ridge, LightGBM e Poisson GLM ativam.<br>Promoção se vencer baseline no walk-forward.</div>
+        </div>
+      </div>
+      <div class="ml-row">
+        <div>
+          <div style="font-weight:700;font-size:12px;color:var(--slate)">T ≥ 18 · Jul/2027</div>
+          <div style="font-size:11px;color:var(--slate-lt)">Modo operacional. Sazonalidade habilitada.<br>Previsões alimentam análise SSD (Camada 4).</div>
+        </div>
+      </div>
+      <div class="alert alert-blue" style="margin-top:4px">
+        <span class="alert-icon">🔍</span>
+        <span>Detecção de drift ativa (z-score). Último check: |z|=0,15 — sem anomalia de regime.</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</main>
+
+<footer>
+  Modelagem da Eficiência Alocativa sob Incerteza Estocástica · Dados: Jan–Abr/2026 ·
+  Método: Dominância Estocástica de 2ª Ordem (SSD) + Bootstrap Não-Paramétrico ·
+  Pesos MMP fixos por série curta · Razão de custos arbitrada (falta:excesso = 1:0,3) ·
+  Limitações declaradas no documento técnico §14
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════════ DATA
+const D = {
+  serie: [
+    { mes:'Jan/26', total:62,   extra:55,  regular:7    },
+    { mes:'Fev/26', total:1487, extra:230, regular:1257 },
+    { mes:'Mar/26', total:1771, extra:588, regular:1183 },
+    { mes:'Abr/26', total:1734, extra:194, regular:1540 },
+  ],
+  unidades: [
+    { unidade:'Unidade K', consumo:623,  pct_extra:34.7 },
+    { unidade:'Unidade A', consumo:574,  pct_extra:19.9 },
+    { unidade:'Unidade E', consumo:510,  pct_extra:24.3 },
+    { unidade:'Unidade G', consumo:477,  pct_extra:18.0 },
+    { unidade:'Unidade C', consumo:398,  pct_extra:19.1 },
+    { unidade:'Unidade J', consumo:385,  pct_extra:26.5 },
+    { unidade:'Unidade B', consumo:332,  pct_extra:20.8 },
+    { unidade:'Unidade F', consumo:307,  pct_extra:14.0 },
+    { unidade:'Unidade H', consumo:290,  pct_extra:17.6 },
+    { unidade:'Unidade L', consumo:278,  pct_extra:22.3 },
+    { unidade:'Unidade D', consumo:247,  pct_extra:18.2 },
+    { unidade:'Unidade I', consumo:212,  pct_extra:15.6 },
+    { unidade:'Unidade M', consumo:199,  pct_extra:12.1 },
+    { unidade:'Unidade N', consumo:135,  pct_extra:11.9 },
+    { unidade:'Unidade O', consumo:87,   pct_extra:9.2  },
+  ],
+  categorias: {
+    labels: ['Limpeza','Escritório','Copa'],
+    values: [2509, 1966, 579],
+    colors: ['#1d4ed8','#7c3aed','#0891b2'],
+  },
+  xyz: {
+    labels: ['Z – Errático','Baixa Rotatividade','Y – Moderado'],
+    values: [274, 213, 60],
+    colors: ['#dc2626','#6366f1','#d97706'],
+  },
+  acoes: {
+    labels: ['Manter','Reforçar\n(alto uso extras)','Aumentar'],
+    values: [390, 85, 72],
+    colors: ['#059669','#d97706','#1d4ed8'],
+  },
+  produtos: [
+    { produto:'Papel Toalha Interfolhado 1000 fls', cat:'Limpeza',   media:17.5, cv:1.00, extra:71.4, xyz:'Z – Errático',       acao:'Reforçar' },
+    { produto:'Sulfite — Pacote 500 fls',            cat:'Escritório',media:13.7, cv:0.98, extra:0.0,  xyz:'Z – Errático',       acao:'Reforçar' },
+    { produto:'Luva Procedimento Descartável',        cat:'Limpeza',   media:10.9, cv:1.21, extra:42.3, xyz:'Z – Errático',       acao:'Reforçar' },
+    { produto:'Álcool 70% — 1 litro',                cat:'Limpeza',   media:8.6,  cv:0.85, extra:10.5, xyz:'Z – Errático',       acao:'Aumentar' },
+    { produto:'Saco de Lixo 40L (fardo 100)',        cat:'Limpeza',   media:8.0,  cv:0.72, extra:8.3,  xyz:'Z – Errático',       acao:'Manter'   },
+    { produto:'Copo Descartável 180ml (100 un.)',     cat:'Copa',      media:7.4,  cv:0.66, extra:20.0, xyz:'Y – Moderado',        acao:'Aumentar' },
+    { produto:'Papel Higiênico Folha Dupla (4un.)',   cat:'Limpeza',   media:7.1,  cv:0.53, extra:5.6,  xyz:'Y – Moderado',        acao:'Manter'   },
+    { produto:'Detergente Neutro 500ml',             cat:'Limpeza',   media:6.3,  cv:0.88, extra:14.3, xyz:'Z – Errático',       acao:'Manter'   },
+    { produto:'Papel A4 — Resma 500 fls',            cat:'Escritório',media:5.8,  cv:0.61, extra:0.0,  xyz:'Y – Moderado',        acao:'Manter'   },
+    { produto:'Sabão Líquido para Mãos 800ml',       cat:'Limpeza',   media:5.4,  cv:0.90, extra:22.2, xyz:'Z – Errático',       acao:'Reforçar' },
+    { produto:'Caneta Esferográfica Azul (cx 50)',   cat:'Escritório',media:4.9,  cv:0.48, extra:0.0,  xyz:'Y – Moderado',        acao:'Manter'   },
+    { produto:'Desinfetante Hospitalar 1L',          cat:'Limpeza',   media:4.6,  cv:1.05, extra:30.8, xyz:'Z – Errático',       acao:'Reforçar' },
+  ],
+};
+
+// ═══════════════════════════════════════════════════ DEFAULTS
+Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+Chart.defaults.font.size   = 12;
+Chart.defaults.color       = '#475569';
+
+const tooltip = {
+  backgroundColor: 'rgba(15,23,42,.92)',
+  titleColor: '#f1f5f9',
+  bodyColor:  '#cbd5e1',
+  padding: 10,
+  cornerRadius: 8,
+  titleFont: { weight: '700' },
+};
+
+// ═══════════════════════════════════════════════════ SÉRIE TEMPORAL
+new Chart(document.getElementById('chart-serie'), {
+  type: 'bar',
+  data: {
+    labels: D.serie.map(d => d.mes),
+    datasets: [
+      {
+        label: 'Regular',
+        data: D.serie.map(d => d.regular),
+        backgroundColor: '#1d4ed8',
+        stack: 's',
+        borderRadius: { topLeft:0, topRight:0, bottomLeft:4, bottomRight:4 },
+      },
+      {
+        label: 'Extra',
+        data: D.serie.map(d => d.extra),
+        backgroundColor: '#fbbf24',
+        stack: 's',
+        borderRadius: { topLeft:4, topRight:4, bottomLeft:0, bottomRight:0 },
+      },
+    ],
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { position:'bottom', labels:{ usePointStyle:true, boxWidth:8, padding:16 } },
+      tooltip: { ...tooltip, mode:'index', intersect:false },
+    },
+    scales: {
+      x: { grid:{ display:false }, border:{ display:false } },
+      y: { grid:{ color:'#f1f5f9' }, border:{ display:false },
+           ticks:{ callback: v => v.toLocaleString('pt-BR') } },
+    },
+  },
+});
+
+// ═══════════════════════════════════════════════════ CATEGORIAS DONUT
+new Chart(document.getElementById('chart-categorias'), {
+  type: 'doughnut',
+  data: {
+    labels: D.categorias.labels,
+    datasets: [{ data: D.categorias.values, backgroundColor: D.categorias.colors,
+                 borderWidth: 2, borderColor: '#ffffff', hoverOffset: 6 }],
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '62%',
+    plugins: {
+      legend: { display: false },
+      tooltip: { ...tooltip,
+        callbacks: {
+          label: ctx => ` ${ctx.label}: ${ctx.raw.toLocaleString('pt-BR')} un. (${(ctx.raw/5054*100).toFixed(1)}%)`
+        }
+      },
+    },
+  },
+});
+
+// ═══════════════════════════════════════════════════ XYZ DONUT
+new Chart(document.getElementById('chart-xyz'), {
+  type: 'doughnut',
+  data: {
+    labels: D.xyz.labels,
+    datasets: [{ data: D.xyz.values, backgroundColor: D.xyz.colors,
+                 borderWidth: 2, borderColor: '#ffffff', hoverOffset: 6 }],
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '62%',
+    plugins: {
+      legend: { display: false },
+      tooltip: { ...tooltip,
+        callbacks: {
+          label: ctx => ` ${ctx.label}: ${ctx.raw} pares (${(ctx.raw/547*100).toFixed(1)}%)`
+        }
+      },
+    },
+  },
+});
+
+// ═══════════════════════════════════════════════════ POR UNIDADE
+new Chart(document.getElementById('chart-unidades'), {
+  type: 'bar',
+  data: {
+    labels: D.unidades.map(d => d.unidade),
+    datasets: [
+      {
+        label: 'Consumo total (un.)',
+        data: D.unidades.map(d => d.consumo),
+        backgroundColor: '#1d4ed8',
+        borderRadius: 4,
+        yAxisID: 'y',
+      },
+      {
+        label: '% Pedidos extras',
+        data: D.unidades.map(d => d.pct_extra),
+        type: 'line',
+        borderColor: '#fbbf24',
+        backgroundColor: 'rgba(251,191,36,.1)',
+        borderWidth: 2,
+        pointRadius: 4,
+        pointBackgroundColor: '#fbbf24',
+        tension: 0.3,
+        fill: false,
+        yAxisID: 'y2',
+      },
+    ],
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode:'index', intersect:false },
+    plugins: {
+      legend: { position:'bottom', labels:{ usePointStyle:true, boxWidth:8, padding:16 } },
+      tooltip: { ...tooltip },
+    },
+    scales: {
+      x: { grid:{ display:false }, border:{ display:false },
+           ticks:{ font:{ size:11 } } },
+      y: { position:'left', grid:{ color:'#f1f5f9' }, border:{ display:false },
+           title:{ display:true, text:'Consumo (un.)', font:{ size:11 } } },
+      y2:{ position:'right', grid:{ display:false }, border:{ display:false },
+           min:0, max:50,
+           title:{ display:true, text:'% Extras', font:{ size:11 } },
+           ticks:{ callback: v => v + '%' } },
+    },
+  },
+});
+
+// ═══════════════════════════════════════════════════ AÇÕES
+new Chart(document.getElementById('chart-acoes'), {
+  type: 'bar',
+  data: {
+    labels: ['Manter','Reforçar (extras)','Aumentar'],
+    datasets: [{
+      data: D.acoes.values,
+      backgroundColor: D.acoes.colors,
+      borderRadius: 6,
+    }],
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { ...tooltip,
+        callbacks: {
+          label: ctx => ` ${ctx.raw} pares (${(ctx.raw/547*100).toFixed(1)}%)`
+        }
+      },
+    },
+    scales: {
+      x: { grid:{ color:'#f1f5f9' }, border:{ display:false } },
+      y: { grid:{ display:false }, border:{ display:false }, ticks:{ font:{ size:12 } } },
+    },
+  },
+});
+
+// ═══════════════════════════════════════════════════ TABELA PRODUTOS
+const acaoPill = {
+  'Reforçar': '<span class="pill pill-ref">Reforçar</span>',
+  'Aumentar': '<span class="pill pill-inc">Aumentar</span>',
+  'Manter':   '<span class="pill pill-mnt">Manter</span>',
+};
+const xyzPill = {
+  'Z – Errático':       '<span class="pill pill-z">Z – Errático</span>',
+  'Y – Moderado':       '<span class="pill pill-y">Y – Moderado</span>',
+  'X – Regular':        '<span class="pill pill-x">X – Regular</span>',
+  'Baixa Rotatividade': '<span class="pill pill-low">Baixa Rotativ.</span>',
+};
+const tbody = document.getElementById('tbl-produtos');
+D.produtos.forEach((p, i) => {
+  const cvColor = p.cv >= 0.70 ? 'color:#dc2626;font-weight:700' : p.cv >= 0.30 ? 'color:#d97706;font-weight:600' : '';
+  const extraColor = p.extra >= 30 ? 'color:#dc2626;font-weight:700' : p.extra >= 15 ? 'color:#d97706' : '';
+  tbody.insertAdjacentHTML('beforeend', `
+    <tr>
+      <td style="color:var(--slate-lt);font-weight:600">${i+1}</td>
+      <td style="font-weight:600;max-width:260px">${p.produto}</td>
+      <td style="color:var(--slate)">${p.cat}</td>
+      <td style="font-weight:700;text-align:right">${p.media.toFixed(1)}</td>
+      <td style="text-align:right;${cvColor}">${p.cv.toFixed(2)}</td>
+      <td style="text-align:right;${extraColor}">${p.extra.toFixed(1)}%</td>
+      <td>${xyzPill[p.xyz] || p.xyz}</td>
+      <td>${acaoPill[p.acao] || p.acao}</td>
+    </tr>
+  `);
+});
+</script>
+</body>
+</html>
