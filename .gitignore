@@ -1,0 +1,22 @@
+# Dados sensíveis — NUNCA versionar
+*.xls
+Relatorio_SCM*
+mapa_anonimizacao.json
+df_clean*.pkl
+metricas*.pkl
+piv_full*.pkl
+
+# Saídas de execução interna
+log_auditoria.csv
+pipeline.log
+01_dataset_consolidado.csv
+02_metricas_por_par.csv
+03_politicas_cota.csv
+04_dominancia.csv
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
